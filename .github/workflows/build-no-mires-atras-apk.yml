@@ -53,6 +53,17 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           test -d "$ANDROID_HOME"
 
+      - name: Correct LibGDX 3D imports
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          FILE="core/src/main/java/com/nomiresatras/game/NoMiresAtrasGame.java"
+          test -f "$FILE"
+          sed -i 's/import com.badlogic.gdx.graphics.g3d.utils.ModelBatch;/import com.badlogic.gdx.graphics.g3d.ModelBatch;/' "$FILE"
+          if ! grep -q 'import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;' "$FILE"; then
+            sed -i '/import com.badlogic.gdx.graphics.g3d.ModelBatch;/a import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;' "$FILE"
+          fi
+          grep -n 'ModelBatch\|DirectionalLight' "$FILE"
+
       - name: Compile Android debug APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
