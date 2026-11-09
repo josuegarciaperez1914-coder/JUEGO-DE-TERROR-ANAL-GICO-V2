@@ -26,11 +26,12 @@ jobs:
           unzip -t NO_Mires_Atras_Android_Java_LibGDX.zip
           mkdir -p workspace
           unzip -q NO_Mires_Atras_Android_Java_LibGDX.zip -d workspace
-          PROJECT_DIR="$(find workspace -type f -name settings.gradle -printf '%h\\n' -quit)"
-          if [ -z "$PROJECT_DIR" ]; then
+          SETTINGS_FILE="$(find workspace -type f -name settings.gradle -print -quit)"
+          if [ -z "$SETTINGS_FILE" ]; then
             echo "::error::No se encontró settings.gradle en el proyecto."
             exit 1
           fi
+          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Proyecto Gradle: $PROJECT_DIR"
           echo "Archivos Gradle:"
