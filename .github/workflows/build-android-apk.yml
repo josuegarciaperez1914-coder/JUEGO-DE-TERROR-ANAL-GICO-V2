@@ -5,7 +5,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'SUENO_VHS_LISTO_PARA_APK.zip'
+      - 'SUENO_VHS_controles_corregidos.zip'
+      - 'SUENO_VHS_controles_corregidos (1).zip'
+      - '.github/workflows/build-android-apk.yml'
 
 permissions:
   contents: read
@@ -14,23 +16,29 @@ jobs:
   build:
     name: Compile SUEÑO VHS APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract prepared game project
+      - name: Extract corrected game project
         run: |
-          test -f SUENO_VHS_LISTO_PARA_APK.zip
-          unzip -q SUENO_VHS_LISTO_PARA_APK.zip -d workspace
-          test -f workspace/sueno_vhs_apk/package.json
+          if [ -f "SUENO_VHS_controles_corregidos.zip" ]; then
+            unzip -q "SUENO_VHS_controles_corregidos.zip" -d workspace
+          elif [ -f "SUENO_VHS_controles_corregidos (1).zip" ]; then
+            unzip -q "SUENO_VHS_controles_corregidos (1).zip" -d workspace
+          else
+            echo "No se encontró el ZIP corregido del juego."
+            exit 1
+          fi
+          test -f workspace/package.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: workspace/sueno_vhs_apk/package-lock.json
+          cache-dependency-path: workspace/package-lock.json
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -38,34 +46,45 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Install dependencies
-        working-directory: workspace/sueno_vhs_apk
+      - name: Install game dependencies
+        working-directory: workspace
         run: npm ci
 
-      - name: Install Capacitor Android
-        working-directory: workspace/sueno_vhs_apk
-        run: npm install --save-exact @capacitor/core@7 @capacitor/android@7 @capacitor/cli@7
+      - name: Add Capacitor Android support
+        working-directory: workspace
+        run: |
+          npm install --save-exact @capacitor/core@7 @capacitor/android@7 @capacitor/cli@7
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = {
+            appId: 'com.suenovhs.nodespiertes',
+            appName: 'SUEÑO VHS - NO DESPIERTES',
+            webDir: 'dist',
+            android: { backgroundColor: '#000000' }
+          };
+          export default config;
+          EOF
 
-      - name: Build game
-        working-directory: workspace/sueno_vhs_apk
+      - name: Build web game
+        working-directory: workspace
         run: npm run build
 
       - name: Generate Android project
-        working-directory: workspace/sueno_vhs_apk
+        working-directory: workspace
         run: npx cap add android
 
-      - name: Sync web game to Android
-        working-directory: workspace/sueno_vhs_apk
+      - name: Sync game into Android
+        working-directory: workspace
         run: npx cap sync android
 
       - name: Compile debug APK
-        working-directory: workspace/sueno_vhs_apk/android
+        working-directory: workspace/android
         run: ./gradlew --no-daemon assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: SUENO-VHS-debug-APK
-          path: workspace/sueno_vhs_apk/android/app/build/outputs/apk/debug/app-debug.apk
+          path: workspace/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
