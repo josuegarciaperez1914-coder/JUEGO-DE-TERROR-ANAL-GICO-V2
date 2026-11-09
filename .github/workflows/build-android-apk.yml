@@ -8,6 +8,7 @@ on:
       - 'SUENO_VHS_controles_corregidos.zip'
       - 'SUENO_VHS_controles_corregidos (1).zip'
       - '.github/workflows/build-android-apk.yml'
+      - '.github/BUILD_TRIGGER.txt'
 
 permissions:
   contents: read
