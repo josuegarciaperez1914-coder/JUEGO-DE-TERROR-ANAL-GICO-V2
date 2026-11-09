@@ -63,6 +63,9 @@ jobs:
             sed -i '/import com.badlogic.gdx.graphics.g3d.ModelBatch;/a import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;' "$FILE"
           fi
           grep -n 'ModelBatch\|DirectionalLight' "$FILE"
+          # Include x86_64 native runtime so the same APK can be smoke-tested in Android Emulator.
+          sed -i "/natives-arm64-v8a/a\\    implementation 'com.badlogicgames.gdx:gdx-platform:1.13.1:natives-x86_64'" android/build.gradle
+          cat android/build.gradle
 
       - name: Inspect Android startup code and packaged assets
         working-directory: ${{ env.PROJECT_DIR }}
@@ -86,6 +89,27 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           gradle --no-daemon assembleDebug
+
+      - name: Smoke test app startup in Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            APK="$(find . -path '*/build/outputs/apk/debug/*.apk' -print -quit)"
+            test -n "$APK"
+            adb install -r "$APK"
+            adb shell am force-stop com.nomiresatras.android || true
+            adb shell monkey -p com.nomiresatras.android 1
+            sleep 20
+            if ! adb shell pidof com.nomiresatras.android >/dev/null; then
+              echo 'La app se cerró durante el arranque. Últimos registros:'
+              adb logcat -d -t 2500
+              exit 1
+            fi
+            echo 'OK: la app permaneció abierta durante 20 segundos.'
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
